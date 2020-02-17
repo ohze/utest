@@ -3,7 +3,8 @@ package asserts
 
 import scala.quoted.{ given, _ }, scala.quoted.matching._
 import scala.tasty._
-
+import scala.quoted.autolift.{ given _ }
+import scala.language.implicitConversions
 
 /**
  * Macro implementation to take a block of code and trace through it,
@@ -23,7 +24,7 @@ object Tracer {
   def apply[T](func: Expr[Seq[AssertEntry[T]] => Unit], exprs: Expr[Seq[T]])(given ctx: QuoteContext, tt: Type[T]): Expr[Unit] = {
     val h = new TracerHelper
     import h._, h.ctx.tasty._
-
+    import h.ctx.tasty.{given _}
 
     exprs match {
       case ExprSeq(ess) =>
@@ -86,8 +87,8 @@ class TracerHelper(given val ctx: QuoteContext) {
         '{
           val tmp: $t = $x
           $logger(TestValue(
-            ${tree.show.toExpr},
-            ${stripScalaCorePrefixes(tpe.show).toExpr},
+            ${tree.show},
+            ${stripScalaCorePrefixes(tpe.show)},
             tmp
           ))
           tmp
@@ -96,7 +97,7 @@ class TracerHelper(given val ctx: QuoteContext) {
   }
 
   def makeAssertEntry[T](expr: Expr[T], code: String)(given scala.quoted.Type[T]) = '{AssertEntry(
-    ${code.toExpr},
+    ${code},
     logger => ${tracingMap('logger).transformTerm(expr.unseal).seal.cast[T]})}
 }
 

@@ -1,6 +1,9 @@
 package utest
 
 import scala.quoted.{ Type => QType, _ }
+import scala.quoted.autolift.{ given _ }
+import scala.language.implicitConversions
+
 import scala.tasty._
 
 import utest.framework.{TestCallTree, Tree => UTree, TestPath }
@@ -36,7 +39,7 @@ class TestBuilder(given QuoteContext) extends TestBuilderExtractors {
           t.tpe.widen match {
             case _: MethodType | _: PolyType => super.transformTerm(t)
             case _ => t.seal match {
-              case '{TestPath.synthetic} => '{TestPath(${path.toExpr})}.unseal
+              case '{TestPath.synthetic} => '{TestPath(${path})}.unseal // summon[Liftable[Seq[String]]].toExpr(path)
               case _ => super.transformTerm(t)
             }
           }
@@ -44,7 +47,7 @@ class TestBuilder(given QuoteContext) extends TestBuilderExtractors {
 
       val setupStats = testPathMap.transformStats(setupStatsRaw)
 
-      val names: Expr[UTree[String]] = '{UTree[String](${name.toExpr}, ${Expr.ofList(nestedNameTrees)}: _*)}
+      val names: Expr[UTree[String]] = '{UTree[String](${name}, ${Expr.ofList(nestedNameTrees)}: _*)}
       val bodies: Expr[TestCallTree] = TestCallTreeExpr(nestedBodyTrees, setupStats)
 
       (names, bodies)
@@ -123,4 +126,4 @@ trait TestBuilderExtractors(given val qc: QuoteContext) {
   }
 }
 
-given QuoteContext => TestBuilder = new TestBuilder
+given (using QuoteContext) as TestBuilder = new TestBuilder
